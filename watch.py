@@ -13,11 +13,12 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.request
 import urllib.error
 
-# NOTE: verify the exact collection slug on opensea.io before relying on this.
-COLLECTION_SLUG = "mlbchampions"
+# Collection slug verified on opensea.io: mlb-champions.
+COLLECTION_SLUG = "mlb-champions"
 EVENTS_URL = (
     "https://api.opensea.io/api/v2/events/collection/"
     f"{COLLECTION_SLUG}?event_type=item_listed&limit=50"
@@ -43,9 +44,13 @@ def load_watchlist(path):
         return [p.strip() for p in json.load(f) if p.strip()]
 
 
+def _norm(s):
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
+
+
 def match_player(nft_name, watchlist):
-    lowered = nft_name.lower()
-    return next((p for p in watchlist if p.lower() in lowered), None)
+    lowered = _norm(nft_name)
+    return next((p for p in watchlist if _norm(p) in lowered), None)
 
 
 def extract_year(nft_name):
@@ -95,7 +100,7 @@ def main():
             "currency": payment.get("symbol"),
             "opensea_url": nft.get("opensea_url"),
             "listed_at": ev.get("event_timestamp"),
-            "urgent": player.lower() in URGENT_PLAYERS,
+            "urgent": _norm(player) in URGENT_PLAYERS,
         })
 
     with open(args.state, "w") as f:
